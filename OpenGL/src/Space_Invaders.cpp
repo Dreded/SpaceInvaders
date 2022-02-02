@@ -782,7 +782,7 @@ int main(int argc, char* argv[])
 	High_Score high_score;
 	read_high_score(high_score);
 	size_t score = 0;
-	size_t level = 1;
+	size_t level = 12;
 
 	game_running = true;
 
@@ -1073,10 +1073,10 @@ int main(int argc, char* argv[])
 
 				if (aliens_killed < game.num_aliens)
 				{
-					size_t rai = game.num_aliens * size_t(random(&rng));
+					size_t rai = game.num_aliens * random(&rng);
 					while (game.aliens[rai].type == ALIEN_DEAD)
 					{
-						rai = game.num_aliens * size_t(random(&rng));
+						rai = game.num_aliens * random(&rng);
 					}
 					if (game.num_bullets < GAME_MAX_BULLETS) {
 						const Sprite& alien_sprite = *alien_animation[game.aliens[rai].type - 1].frames[0];
@@ -1150,7 +1150,13 @@ int main(int argc, char* argv[])
 				level++;
 				game.num_bullets = 0;
 				alien_swarm_max_position = game.width - 16 * 11 - 3; //Reset max alien width
-				alien_update_frequency = 120 - (level * 10);
+				if (level <= 8)
+					alien_update_frequency = 120 - (level * 10);
+				else if (level <= 36) // 120-80-36 = 4 since each level doubles in speed twice, this is maximum speed.
+					alien_update_frequency = 120 - 8 * 10 - level;
+				else
+					alien_update_frequency = 4;
+
 				alien_swarm_position = 24;
 
 				aliens_killed = 0;
