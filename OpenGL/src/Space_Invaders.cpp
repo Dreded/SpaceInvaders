@@ -324,7 +324,7 @@ int main(int argc, char* argv[])
 
 	if (!glfwInit()) return -1;
 
-	screen_width = int(glfwGetVideoMode(glfwGetPrimaryMonitor())->width / 1.25);
+	screen_width = int((glfwGetVideoMode(glfwGetPrimaryMonitor())->height / 1.25 / buffer_height) * buffer_width);
 	screen_height = int(glfwGetVideoMode(glfwGetPrimaryMonitor())->height / 1.25);
 
 
@@ -1049,7 +1049,7 @@ int main(int argc, char* argv[])
 					move_audio_i = 0;
 				alien_update_timer = 0;
 
-				if ((int)alien_swarm_position + alien_move_dir < 0)
+				if ((int)alien_swarm_position + alien_move_dir < 0 || alien_swarm_position > alien_swarm_max_position - alien_move_dir)
 				{
 					alien_move_dir *= -1;
 					//TODO: Perhaps if aliens get close enough to player, we need to check
@@ -1059,10 +1059,6 @@ int main(int argc, char* argv[])
 						Alien& alien = game.aliens[ai];
 						alien.y -= 8;
 					}
-				}
-				else if (alien_swarm_position > alien_swarm_max_position - alien_move_dir)
-				{
-					alien_move_dir *= -1;
 				}
 				alien_swarm_position += alien_move_dir;
 
@@ -1153,11 +1149,14 @@ int main(int argc, char* argv[])
 				game.num_bullets = 0;
 				alien_swarm_max_position = game.width - 16 * 11 - 3; //Reset max alien width
 				if (level <= 8)
-					alien_update_frequency = 120 - (level * 10);
+					alien_update_frequency = 120 - ((level-1) * 10);
 				else if (level <= 36) // 120-80-36 = 4 since each level doubles in speed twice, this is maximum speed.
 					alien_update_frequency = 120 - 8 * 10 - level;
 				else
 					alien_update_frequency = 4;
+				// since we are updating speed right away to fix animation
+				// lets just double the initial speed.(for sub 1 frame)
+				alien_update_frequency *= 2;
 
 				alien_swarm_position = 24;
 
@@ -1180,7 +1179,10 @@ int main(int argc, char* argv[])
 						const Sprite& sprite = alien_sprites[2 * (alien.type - 1)];
 
 						alien.x = 16 * xi + alien_swarm_position + (alien_death_sprite.width - sprite.width) / 2;
-						alien.y = 17 * yi + 128;
+
+						//drop 8px per level
+						alien.y = 17 * yi + 128 - (8 * (level - 1));
+						sprite.width;
 					}
 				}
 			}
