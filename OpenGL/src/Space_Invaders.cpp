@@ -762,7 +762,6 @@ int main(int argc, char* argv[])
 
     High_Score high_score;
     read_high_score(high_score);
-    std::cout << high_score.hs << std::endl;
     size_t score = 0;
     size_t credits = 0;
 
@@ -818,7 +817,6 @@ int main(int argc, char* argv[])
         int high_score_txt_pos = game.width - high_score_txt_width;
         int high_score_width = std::to_string(high_score.hs).length() * (number_spritesheet.width + 1);
         int high_score_pos = (game.width - high_score_width) - (high_score_txt_width/2 - high_score_width/2);
-        std::cout << high_score_txt_width  << std::endl;
         buffer_draw_text(&buffer, text_spritesheet, "HIGH SCORE", high_score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
         buffer_draw_number(&buffer, number_spritesheet, high_score.hs, high_score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
 
@@ -859,7 +857,7 @@ int main(int argc, char* argv[])
                 const SpriteAnimation& animation = alien_animation[alien.type - 1];
                 size_t current_frame = animation.time / animation.frame_duration;
                 const Sprite& sprite = *animation.frames[current_frame];
-                buffer_draw_sprite(&buffer, sprite, alien.x, alien.y, rgb_to_uint32(255, 255, 255));
+                buffer_draw_sprite(&buffer, sprite, alien.x, alien.y);
             }
         }
 
