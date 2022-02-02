@@ -1015,7 +1015,7 @@ int main(int argc, char* argv[])
 			if (should_change_speed)
 			{
 				should_change_speed = false;
-				alien_update_frequency /= 1.25;
+				alien_update_frequency /= 2;
 				for (size_t i = 0; i < 3; ++i)
 				{
 					alien_animation[i].frame_duration = alien_update_frequency;
