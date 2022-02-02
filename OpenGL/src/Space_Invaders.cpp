@@ -782,7 +782,7 @@ int main(int argc, char* argv[])
 	High_Score high_score;
 	read_high_score(high_score);
 	size_t score = 0;
-	size_t level = 12;
+	size_t level = 1;
 
 	game_running = true;
 
@@ -833,6 +833,12 @@ int main(int argc, char* argv[])
 			buffer_draw_text(&buffer, text_spritesheet, "HIGH SCORE", high_score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
 			buffer_draw_number(&buffer, number_spritesheet, high_score.hs, high_score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
 
+			std::string level_text = "LEVEL " + std::to_string(level);
+			int level_text_width = level_text.length() * (number_spritesheet.width + 1);
+			int level_text_pos = (game.width - level_text_width) - text_border_offset;
+			buffer_draw_text(&buffer, text_spritesheet, level_text.c_str() , level_text_pos, text_spritesheet.height, red_color);
+
+
 			if (game_over)
 				game.player.life = 0;
 
@@ -856,13 +862,6 @@ int main(int argc, char* argv[])
 					game.player.life = 1;
 				continue;
 			}
-
-			{
-				char level_text[16];
-				sprintf_s(level_text, "LEVEL %02lu", level);
-				buffer_draw_text(&buffer, text_spritesheet, level_text, 164, 7, red_color);
-			}
-
 
 			buffer_draw_number(&buffer, number_spritesheet, game.player.life, 4, 7, red_color);
 			size_t xp = 11 + number_spritesheet.width;
@@ -1147,6 +1146,7 @@ int main(int argc, char* argv[])
 					fire_pressed = false;
 					level = 0;
 				}
+				should_change_speed = true;
 				level++;
 				game.num_bullets = 0;
 				alien_swarm_max_position = game.width - 16 * 11 - 3; //Reset max alien width
