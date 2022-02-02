@@ -344,6 +344,8 @@ int main(int argc, char* argv[])
 	//center initial window to screen
 	glfwSetWindowPos(window, (glfwGetVideoMode(glfwGetPrimaryMonitor())->width-screen_width)/2, (glfwGetVideoMode(glfwGetPrimaryMonitor())->height-screen_height)/2);
 
+	//Hide Mouse Cursor, Still allows mouse to exit window
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetWindowSizeCallback(window, window_size_callback);
 
