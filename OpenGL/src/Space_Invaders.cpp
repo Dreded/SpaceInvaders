@@ -17,6 +17,7 @@ bool game_running = false;
 int move_dir = 0;
 bool fire_pressed = 0;
 bool reset = 0;
+bool game_over = false;
 int screen_width = 0;
 int screen_height = 0;
 bool window_resize = true;
@@ -104,6 +105,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		break;
 	case GLFW_KEY_R:
 		if (action == GLFW_RELEASE) reset = true;
+		break;
+	case GLFW_KEY_G:
+		if (action == GLFW_RELEASE) game_over = true;
 		break;
 	default:
 		break;
@@ -324,6 +328,7 @@ int main(int argc, char* argv[])
 	screen_height = glfwGetVideoMode(glfwGetPrimaryMonitor())->height / 1.25;
 
 
+
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -336,6 +341,8 @@ int main(int argc, char* argv[])
 		glfwTerminate();
 		return -1;
 	}
+	//center initial window to screen
+	glfwSetWindowPos(window, (glfwGetVideoMode(glfwGetPrimaryMonitor())->width-screen_width)/2, (glfwGetVideoMode(glfwGetPrimaryMonitor())->height-screen_height)/2);
 
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetWindowSizeCallback(window, window_size_callback);
@@ -786,6 +793,7 @@ int main(int argc, char* argv[])
 	double deltaTime = 0, nowTime = 0;
 	int frames = 0, updates = 0;
 
+
 	// - While window is alive
 	while (!glfwWindowShouldClose(window) && game_running) {
 
@@ -809,14 +817,30 @@ int main(int argc, char* argv[])
 			}
 			buffer_clear(&buffer, clear_color);
 
+			const int text_border_offset = 10;
+			const int score_txt_width = std::string("SCORE").length() * (text_spritesheet.width + 1);
+			int score_txt_pos = text_border_offset;
+			int score_width = std::to_string(score).length() * (number_spritesheet.width + 1);
+			int score_pos = score_txt_pos + (score_txt_width / 2 - score_width / 2);
+			buffer_draw_text(&buffer, text_spritesheet, "SCORE", score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
+			buffer_draw_number(&buffer, number_spritesheet, score, score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
+
+			//Draw High_Score - there is a 1px space between each character
+			const int high_score_txt_width = std::string("HIGH SCORE").length() * (text_spritesheet.width + 1);
+			int high_score_txt_pos = game.width - text_border_offset - high_score_txt_width;
+			int high_score_width = std::to_string(high_score.hs).length() * (number_spritesheet.width + 1);
+			int high_score_pos = (game.width - high_score_width) - (high_score_txt_width / 2 - high_score_width / 2) - text_border_offset;
+			buffer_draw_text(&buffer, text_spritesheet, "HIGH SCORE", high_score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
+			buffer_draw_number(&buffer, number_spritesheet, high_score.hs, high_score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
+
+			if (game_over)
+				game.player.life = 0;
 
 			if (game.player.life == 0)
 			{
+				game_over = false;
 
 				buffer_draw_text(&buffer, text_spritesheet, "GAME OVER", game.width / 2 - 30, game.height / 2, red_color);
-				buffer_draw_text(&buffer, text_spritesheet, "SCORE", 4, game.height - text_spritesheet.height - 7, red_color);
-				buffer_draw_number(&buffer, number_spritesheet, score, 4 + 2 * number_spritesheet.width, game.height - 2 * number_spritesheet.height - 12, red_color);
-
 				glTexSubImage2D(
 					GL_TEXTURE_2D, 0, 0, 0,
 					buffer.width, buffer.height,
@@ -832,22 +856,6 @@ int main(int argc, char* argv[])
 					game.player.life = 1;
 				continue;
 			}
-
-			// Draw
-			const int score_txt_width = std::string("SCORE").length() * (text_spritesheet.width + 1);
-			int score_txt_pos = 0;
-			int score_width = std::to_string(score).length() * (number_spritesheet.width + 1);
-			int score_pos = score_txt_width / 2 - score_width / 2;
-			buffer_draw_text(&buffer, text_spritesheet, "SCORE", score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
-			buffer_draw_number(&buffer, number_spritesheet, score, score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
-
-			//Draw High_Score - there is a 1px space between each character
-			const int high_score_txt_width = std::string("HIGH SCORE").length() * (text_spritesheet.width + 1);
-			int high_score_txt_pos = game.width - high_score_txt_width;
-			int high_score_width = std::to_string(high_score.hs).length() * (number_spritesheet.width + 1);
-			int high_score_pos = (game.width - high_score_width) - (high_score_txt_width / 2 - high_score_width / 2);
-			buffer_draw_text(&buffer, text_spritesheet, "HIGH SCORE", high_score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
-			buffer_draw_number(&buffer, number_spritesheet, high_score.hs, high_score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
 
 			{
 				char credit_text[16];
@@ -1136,9 +1144,9 @@ int main(int argc, char* argv[])
 					reset = false;
 					game.player.life = 3;
 					score = 0;
-					game.num_bullets = 0;
 					fire_pressed = false;
 				}
+				game.num_bullets = 0;
 				alien_swarm_max_position = game.width - 16 * 11 - 3; //Reset max alien width
 				alien_update_frequency = 120;
 				alien_swarm_position = 24;
