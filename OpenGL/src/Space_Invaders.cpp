@@ -3,12 +3,15 @@
 #include <limits>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <irrKlang.h>
 
 #define ASSERT(x) if (!(x)) __debugbreak();
+#define GAME_NAME "Space Invaders"
+#define VERSION "v0.1"
 
 bool game_running = false;
 int move_dir = 0;
@@ -68,6 +71,28 @@ bool validate_program(GLuint program) {
     }
 
     return true;
+}
+size_t lastTime = 0;
+size_t nbFrames = 0;
+void showFPS(GLFWwindow* pWindow)
+{
+    // Measure speed
+    double currentTime = glfwGetTime();
+    double delta = currentTime - lastTime;
+    nbFrames++;
+    if (delta >= 1.0) { // If last cout was more than 1 sec ago
+        std::cout << 1000.0 / double(nbFrames) << std::endl;
+
+        double fps = double(nbFrames) / delta;
+
+        std::stringstream ss;
+        ss << GAME_NAME << " " << VERSION << " [" << fps << " FPS]";
+
+        glfwSetWindowTitle(pWindow, ss.str().c_str());
+
+        nbFrames = 0;
+        lastTime = currentTime;
+    }
 }
 
 void error_callback(int error, const char* description)
@@ -319,7 +344,7 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
     /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* window = glfwCreateWindow(screen_width, screen_height, "Space Invaders", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(screen_width, screen_height, GAME_NAME, NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -1158,6 +1183,7 @@ int main(int argc, char* argv[])
             SoundEngine->play2D("audio/player_shoot.wav", false);
         }
         fire_pressed = false;
+        showFPS(window);
 
         glfwPollEvents();
     }
