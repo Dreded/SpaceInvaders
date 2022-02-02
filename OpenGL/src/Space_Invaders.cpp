@@ -717,6 +717,13 @@ int main(int argc, char* argv[])
     game.player.y = 32;
 
     game.player.life = 3;
+    std::string move_audio[4] = {
+        "audio/move1.wav",
+        "audio/move2.wav",
+        "audio/move3.wav",
+        "audio/move4.wav"
+    };
+    size_t move_audio_i = 0;
 
     size_t alien_swarm_position = 24;
     size_t alien_swarm_max_position = game.width - 16 * 11 - 3;
@@ -852,7 +859,7 @@ int main(int argc, char* argv[])
                 const SpriteAnimation& animation = alien_animation[alien.type - 1];
                 size_t current_frame = animation.time / animation.frame_duration;
                 const Sprite& sprite = *animation.frames[current_frame];
-                buffer_draw_sprite(&buffer, sprite, alien.x, alien.y);
+                buffer_draw_sprite(&buffer, sprite, alien.x, alien.y, rgb_to_uint32(255, 255, 255));
             }
         }
 
@@ -1010,6 +1017,10 @@ int main(int argc, char* argv[])
 
         if (alien_update_timer >= alien_update_frequency)
         {
+            SoundEngine->play2D(move_audio[move_audio_i].c_str(), false);
+            move_audio_i++;
+            if (move_audio_i == 4)
+                move_audio_i = 0;
             alien_update_timer = 0;
 
             if ((int)alien_swarm_position + alien_move_dir < 0)
