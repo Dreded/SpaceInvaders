@@ -2,10 +2,11 @@
 Initially Based off Tutorial here
 http://nicktasios.nl/posts/space-invaders-from-scratch-part-1.html
 
-![space_Invaders](https://user-images.githubusercontent.com/3213678/152096300-7da0a2a2-e0af-48a8-bb48-b6f9c37c4946.png)
+![space_Invaders](https://user-images.githubusercontent.com/3213678/152096523-bfbe6ca2-2829-47a9-b542-ae3918503e69.png)
 
-# Please see OpenGL/Licenses/ for individual library licenses
-# License
+###### Please see OpenGL/Licenses/ for individual library licenses
+
+## License
 Copyright 2022 Dreded
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
