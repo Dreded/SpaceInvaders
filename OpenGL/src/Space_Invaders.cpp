@@ -74,10 +74,10 @@ bool validate_program(GLuint program) {
 
 	return true;
 }
-void updateWindowTitle(GLFWwindow* pWindow, int frames)
+void updateWindowTitle(GLFWwindow* pWindow, size_t frames, size_t alien_speed)
 { 
 		std::stringstream ss;
-		ss << GAME_NAME << "  " << VERSION << "  [" << frames << " FPS]";
+		ss << GAME_NAME << "  " << VERSION << "  Alien Speed:  " << alien_speed <<  "  [" << frames << " FPS]";
 
 		glfwSetWindowTitle(pWindow, ss.str().c_str());
 }
@@ -173,7 +173,7 @@ struct Sprite
 struct Alien
 {
 	size_t x, y;
-	uint8_t type;
+	size_t type;
 };
 
 struct Bullet
@@ -324,8 +324,8 @@ int main(int argc, char* argv[])
 
 	if (!glfwInit()) return -1;
 
-	screen_width = glfwGetVideoMode(glfwGetPrimaryMonitor())->width / 1.25;
-	screen_height = glfwGetVideoMode(glfwGetPrimaryMonitor())->height / 1.25;
+	screen_width = int(glfwGetVideoMode(glfwGetPrimaryMonitor())->width / 1.25);
+	screen_height = int(glfwGetVideoMode(glfwGetPrimaryMonitor())->height / 1.25);
 
 
 
@@ -756,7 +756,7 @@ int main(int argc, char* argv[])
 		for (size_t yi = 0; yi < 5; ++yi)
 		{
 			Alien& alien = game.aliens[xi * 5 + yi];
-			alien.type = (5 - yi) / 2 + 1;
+			alien.type = (5 - int(yi)) / 2 + 1;
 			const Sprite& sprite = alien_sprites[2 * (alien.type - 1)];
 
 			alien.x = 16 * xi + alien_swarm_position + (alien_death_sprite.width - sprite.width) / 2;
@@ -782,7 +782,7 @@ int main(int argc, char* argv[])
 	High_Score high_score;
 	read_high_score(high_score);
 	size_t score = 0;
-	size_t credits = 0;
+	size_t level = 1;
 
 	game_running = true;
 
@@ -791,7 +791,7 @@ int main(int argc, char* argv[])
 
 	double lastTime = glfwGetTime(), timer = lastTime;
 	double deltaTime = 0, nowTime = 0;
-	int frames = 0, updates = 0;
+	size_t frames = 0, updates = 0;
 
 
 	// - While window is alive
@@ -809,9 +809,9 @@ int main(int argc, char* argv[])
 
 			if (window_resize)
 			{
-				double my_ratio = screen_height / buffer_height;
-				double my_width = buffer_width * my_ratio;
-				double black_bar = (screen_width - my_width) / 2;
+				GLsizei my_ratio = screen_height / buffer_height;
+				GLsizei my_width = buffer_width * my_ratio;
+				GLsizei black_bar = (screen_width - my_width) / 2;
 				glViewport(black_bar, 0, my_width, screen_height);
 				window_resize = false;
 			}
@@ -858,9 +858,9 @@ int main(int argc, char* argv[])
 			}
 
 			{
-				char credit_text[16];
-				sprintf_s(credit_text, "CREDIT %02lu", credits);
-				buffer_draw_text(&buffer, text_spritesheet, credit_text, 164, 7, red_color);
+				char level_text[16];
+				sprintf_s(level_text, "LEVEL %02lu", level);
+				buffer_draw_text(&buffer, text_spritesheet, level_text, 164, 7, red_color);
 			}
 
 
@@ -1073,10 +1073,10 @@ int main(int argc, char* argv[])
 
 				if (aliens_killed < game.num_aliens)
 				{
-					size_t rai = game.num_aliens * random(&rng);
+					size_t rai = game.num_aliens * size_t(random(&rng));
 					while (game.aliens[rai].type == ALIEN_DEAD)
 					{
-						rai = game.num_aliens * random(&rng);
+						rai = game.num_aliens * size_t(random(&rng));
 					}
 					if (game.num_bullets < GAME_MAX_BULLETS) {
 						const Sprite& alien_sprite = *alien_animation[game.aliens[rai].type - 1].frames[0];
@@ -1145,10 +1145,12 @@ int main(int argc, char* argv[])
 					game.player.life = 3;
 					score = 0;
 					fire_pressed = false;
+					level = 0;
 				}
+				level++;
 				game.num_bullets = 0;
 				alien_swarm_max_position = game.width - 16 * 11 - 3; //Reset max alien width
-				alien_update_frequency = 120;
+				alien_update_frequency = 120 - (level * 10);
 				alien_swarm_position = 24;
 
 				aliens_killed = 0;
@@ -1203,7 +1205,7 @@ int main(int argc, char* argv[])
 		// - Reset after one second
 		if (glfwGetTime() - timer > 1.0) {
 			timer++;
-			updateWindowTitle(window, frames);
+			updateWindowTitle(window, frames, alien_update_frequency);
 			std::cout << "FPS: " << frames << " Updates:" << updates << std::endl;
 			updates = 0, frames = 0;
 		}
