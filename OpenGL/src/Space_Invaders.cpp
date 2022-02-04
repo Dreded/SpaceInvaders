@@ -7,7 +7,8 @@
 #include <string>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <irrKlang.h>
+
+#include "Sound.h"
 
 #define ASSERT(x) if (!(x)) __debugbreak();
 #define GAME_NAME "Space Invaders"
@@ -23,7 +24,7 @@ int screen_height = 0;
 bool window_resize = true;
 bool render = true;
 
-irrklang::ISoundEngine* SoundEngine = irrklang::createIrrKlangDevice();
+Sound sound;
 
 #define GL_ERROR_CASE(glerror)\
     case glerror: snprintf(error, sizeof(error), "%s", #glerror)
@@ -738,13 +739,6 @@ int main(int argc, char* argv[])
 	game.player.y = 32;
 
 	game.player.life = 3;
-	std::string move_audio[4] = {
-		"audio/move1.wav",
-		"audio/move2.wav",
-		"audio/move3.wav",
-		"audio/move4.wav"
-	};
-	size_t move_audio_i = 0;
 
 	size_t alien_swarm_position = 24;
 	size_t alien_swarm_max_position = game.width - 16 * 11 - 3;
@@ -940,7 +934,7 @@ int main(int argc, char* argv[])
 
 					if (overlap)
 					{
-						SoundEngine->play2D("audio/explosion.wav", false);
+						sound.Player_DeathPlay();
 						--game.player.life;
 						game.bullets[bi] = game.bullets[game.num_bullets - 1];
 						--game.num_bullets;
@@ -1010,7 +1004,7 @@ int main(int argc, char* argv[])
 							game.bullets[bi] = game.bullets[game.num_bullets - 1];
 							--game.num_bullets;
 							++aliens_killed;
-							SoundEngine->play2D("audio/invader_killed.wav", false);
+							sound.Invader_KilledPlay();
 
 							if (aliens_killed % 15 == 0) should_change_speed = true;
 
@@ -1043,10 +1037,7 @@ int main(int argc, char* argv[])
 
 			if (alien_update_timer >= alien_update_frequency)
 			{
-				SoundEngine->play2D(move_audio[move_audio_i].c_str(), false);
-				move_audio_i++;
-				if (move_audio_i == 4)
-					move_audio_i = 0;
+				sound.AlienMovePlay();
 				alien_update_timer = 0;
 
 				if ((int)alien_swarm_position + alien_move_dir < 0 || alien_swarm_position > alien_swarm_max_position - alien_move_dir)
@@ -1194,7 +1185,7 @@ int main(int argc, char* argv[])
 				game.bullets[game.num_bullets].y = game.player.y + player_sprite.height;
 				game.bullets[game.num_bullets].dir = 2;
 				++game.num_bullets;
-				SoundEngine->play2D("audio/player_shoot.wav", false);
+				sound.Player_ShootPlay();
 			}
 			fire_pressed = false;
 			glfwPollEvents();
