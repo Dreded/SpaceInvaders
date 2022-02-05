@@ -6,7 +6,6 @@
 
 class Sound
 {
-public:
 	enum SoundFile : unsigned char {
 		UFO_Flying = 0,		// ufo_highpitch.wav on repeat
 		Player_Shoot,		// Shoot.wav
@@ -19,6 +18,7 @@ public:
 		UFO_Death,			// ufo_lowpitch.wav
 		ExtraLife = 9		// extendedplay.wav
 	};
+public:
 
 
 private:

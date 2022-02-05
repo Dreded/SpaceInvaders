@@ -10,11 +10,14 @@
 #include "Score.h"
 #include "Player.h"
 #include "Sprite.h"
+#include "Sprite_Text.h"
+#include "Aliens.h"
 
 #define ASSERT(x) if (!(x)) __debugbreak();
 #define GAME_NAME "Space Invaders"
 #define VERSION "v0.1"
 
+const bool enable_vsync = true;
 bool game_running = false;
 int move_dir = 0;
 bool fire_pressed = 0;
@@ -28,10 +31,6 @@ bool render = true;
 Sound sound;
 Score score;
 
-uint32_t rgb_to_uint32(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
-{
-	return (r << 24) | (g << 16) | (b << 8) | a;
-}
 #define GL_ERROR_CASE(glerror)\
     case glerror: snprintf(error, sizeof(error), "%s", #glerror)
 
@@ -81,10 +80,10 @@ bool validate_program(GLuint program) {
 
 	return true;
 }
-void updateWindowTitle(GLFWwindow* pWindow, size_t frames, size_t alien_speed)
+void updateWindowTitle(GLFWwindow* pWindow, size_t frames, size_t updates, size_t alien_speed)
 { 
 		std::stringstream ss;
-		ss << GAME_NAME << "  " << VERSION << "  Alien Speed:  " << alien_speed <<  "  [" << frames << " FPS]";
+		ss << GAME_NAME << "  " << VERSION << "  Alien Speed:  " << alien_speed <<  "  [" << frames << " FPS  Updates: " << updates << "]";
 
 		glfwSetWindowTitle(pWindow, ss.str().c_str());
 }
@@ -163,14 +162,15 @@ struct Bullet
 };
 struct Game
 {
+	Sprite_Text sprite_text;
 	size_t width, height;
 	size_t num_aliens;
 	size_t num_bullets;
-	Alien* aliens;
+	Alien* alien;
+	Aliens aliens;
 	Player player;
 	Bullet bullets[GAME_MAX_BULLETS];
 };
-
 struct SpriteAnimation
 {
 	bool loop;
@@ -262,20 +262,20 @@ void buffer_draw_number(
 
 void buffer_draw_text(
 	Buffer* buffer,
-	const Sprite& text_spritesheet,
+	const Sprite& spritesheet_text,
 	const char* text,
 	size_t x, size_t y,
 	uint32_t color)
 {
 	size_t xp = x;
-	size_t stride = text_spritesheet.width * text_spritesheet.height;
-	Sprite sprite = text_spritesheet;
+	size_t stride = spritesheet_text.width * spritesheet_text.height;
+	Sprite sprite = spritesheet_text;
 	for (const char* charp = text; *charp != '\0'; ++charp)
 	{
 		char character = *charp - 32;
 		if (character < 0 || character >= 65) continue;
 
-		sprite.data = text_spritesheet.data + character * stride;
+		sprite.data = spritesheet_text.data + character * stride;
 		buffer_draw_sprite(buffer, sprite, xp, y, color);
 		xp += sprite.width + 1;
 	}
@@ -338,7 +338,7 @@ int main(int argc, char* argv[])
 	printf("Shading Language: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 	//change to 1 to enable vsync
-	glfwSwapInterval(0);
+	glfwSwapInterval(enable_vsync);
 
 	glClearColor(1.0, 0.0, 0.0, 1.0);
 
@@ -443,193 +443,6 @@ int main(int argc, char* argv[])
 	glBindVertexArray(fullscreen_triangle_vao);
 
 	// Prepare game
-	Sprite alien_sprites[6];
-
-	alien_sprites[0].width = 8;
-	alien_sprites[0].height = 8;
-	alien_sprites[0].color = rgb_to_uint32(255, 154, 0);
-	alien_sprites[0].data = new uint8_t[64]
-	{
-		0,0,0,1,1,0,0,0, // ...@@...
-		0,0,1,1,1,1,0,0, // ..@@@@..
-		0,1,1,1,1,1,1,0, // .@@@@@@.
-		1,1,0,1,1,0,1,1, // @@.@@.@@
-		1,1,1,1,1,1,1,1, // @@@@@@@@
-		0,1,0,1,1,0,1,0, // .@.@@.@.
-		1,0,0,0,0,0,0,1, // @......@
-		0,1,0,0,0,0,1,0  // .@....@.
-	};
-
-	alien_sprites[1].width = 8;
-	alien_sprites[1].height = 8;
-	alien_sprites[1].color = rgb_to_uint32(255, 154, 0);
-	alien_sprites[1].data = new uint8_t[64]
-	{
-		0,0,0,1,1,0,0,0, // ...@@...
-		0,0,1,1,1,1,0,0, // ..@@@@..
-		0,1,1,1,1,1,1,0, // .@@@@@@.
-		1,1,0,1,1,0,1,1, // @@.@@.@@
-		1,1,1,1,1,1,1,1, // @@@@@@@@
-		0,0,1,0,0,1,0,0, // ..@..@..
-		0,1,0,1,1,0,1,0, // .@.@@.@.
-		1,0,1,0,0,1,0,1  // @.@..@.@
-	};
-
-	alien_sprites[2].width = 11;
-	alien_sprites[2].height = 8;
-	alien_sprites[2].color = rgb_to_uint32(0, 120, 255);
-	alien_sprites[2].data = new uint8_t[88]
-	{
-		0,0,1,0,0,0,0,0,1,0,0, // ..@.....@..
-		0,0,0,1,0,0,0,1,0,0,0, // ...@...@...
-		0,0,1,1,1,1,1,1,1,0,0, // ..@@@@@@@..
-		0,1,1,0,1,1,1,0,1,1,0, // .@@.@@@.@@.
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-		1,0,1,1,1,1,1,1,1,0,1, // @.@@@@@@@.@
-		1,0,1,0,0,0,0,0,1,0,1, // @.@.....@.@
-		0,0,0,1,1,0,1,1,0,0,0  // ...@@.@@...
-	};
-
-	alien_sprites[3].width = 11;
-	alien_sprites[3].height = 8;
-	alien_sprites[3].color = rgb_to_uint32(0, 120, 255);
-	alien_sprites[3].data = new uint8_t[88]
-	{
-		0,0,1,0,0,0,0,0,1,0,0, // ..@.....@..
-		1,0,0,1,0,0,0,1,0,0,1, // @..@...@..@
-		1,0,1,1,1,1,1,1,1,0,1, // @.@@@@@@@.@
-		1,1,1,0,1,1,1,0,1,1,1, // @@@.@@@.@@@
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-		0,1,1,1,1,1,1,1,1,1,0, // .@@@@@@@@@.
-		0,0,1,0,0,0,0,0,1,0,0, // ..@.....@..
-		0,1,0,0,0,0,0,0,0,1,0  // .@.......@.
-	};
-
-	alien_sprites[4].width = 12;
-	alien_sprites[4].height = 8;
-	alien_sprites[4].color = rgb_to_uint32(189, 0, 255);
-	alien_sprites[4].data = new uint8_t[96]
-	{
-		0,0,0,0,1,1,1,1,0,0,0,0, // ....@@@@....
-		0,1,1,1,1,1,1,1,1,1,1,0, // .@@@@@@@@@@.
-		1,1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@@
-		1,1,1,0,0,1,1,0,0,1,1,1, // @@@..@@..@@@
-		1,1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@@
-		0,0,0,1,1,0,0,1,1,0,0,0, // ...@@..@@...
-		0,0,1,1,0,1,1,0,1,1,0,0, // ..@@.@@.@@..
-		1,1,0,0,0,0,0,0,0,0,1,1  // @@........@@
-	};
-
-
-	alien_sprites[5].width = 12;
-	alien_sprites[5].height = 8;
-	alien_sprites[5].color = rgb_to_uint32(189, 0, 255);
-	alien_sprites[5].data = new uint8_t[96]
-	{
-		0,0,0,0,1,1,1,1,0,0,0,0, // ....@@@@....
-		0,1,1,1,1,1,1,1,1,1,1,0, // .@@@@@@@@@@.
-		1,1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@@
-		1,1,1,0,0,1,1,0,0,1,1,1, // @@@..@@..@@@
-		1,1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@@
-		0,0,1,1,1,0,0,1,1,1,0,0, // ..@@@..@@@..
-		0,1,1,0,0,1,1,0,0,1,1,0, // .@@..@@..@@.
-		0,0,1,1,0,0,0,0,1,1,0,0  // ..@@....@@..
-	};
-
-	Sprite alien_death_sprite;
-	alien_death_sprite.width = 13;
-	alien_death_sprite.height = 7;
-	alien_death_sprite.color = rgb_to_uint32(255, 0, 0);
-	alien_death_sprite.data = new uint8_t[91]
-	{
-		0,1,0,0,1,0,0,0,1,0,0,1,0, // .@..@...@..@.
-		0,0,1,0,0,1,0,1,0,0,1,0,0, // ..@..@.@..@..
-		0,0,0,1,0,0,0,0,0,1,0,0,0, // ...@.....@...
-		1,1,0,0,0,0,0,0,0,0,0,1,1, // @@.........@@
-		0,0,0,1,0,0,0,0,0,1,0,0,0, // ...@.....@...
-		0,0,1,0,0,1,0,1,0,0,1,0,0, // ..@..@.@..@..
-		0,1,0,0,1,0,0,0,1,0,0,1,0  // .@..@...@..@.
-	};
-
-
-	Sprite text_spritesheet;
-	text_spritesheet.width = 5;
-	text_spritesheet.height = 7;
-	text_spritesheet.data = new uint8_t[65 * 35]
-	{
-		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // ' '
-		0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0, // '!'
-		0,1,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // '"'
-		0,1,0,1,0,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,1,0,1,0, // '#'
-		0,0,1,0,0,0,1,1,1,0,1,0,1,0,0,0,1,1,1,0,0,0,1,0,1,0,1,1,1,0,0,0,1,0,0, // '$'
-		1,1,0,1,0,1,1,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,1,0,1,0,1,1, // '%'
-		0,1,1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,1,0,0,1,0,0,1,0,1,0,0,0,1,0,1,1,1,1, // '&'
-		0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // '`'
-		0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1, // '{'
-		1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0, // '}'
-		0,0,1,0,0,1,0,1,0,1,0,1,1,1,0,0,0,1,0,0,0,1,1,1,0,1,0,1,0,1,0,0,1,0,0, // '*'
-		0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,1,1,1,1,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0, // '+'
-		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0, // ','
-		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // '-'
-		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0, // '.'
-		0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0, // '/'
-
-		0,1,1,1,0,1,0,0,0,1,1,0,0,1,1,1,0,1,0,1,1,1,0,0,1,1,0,0,0,1,0,1,1,1,0, // '0'
-		0,0,1,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,1,1,0, // '1'
-		0,1,1,1,0,1,0,0,0,1,0,0,0,0,1,0,0,1,1,0,0,1,0,0,0,1,0,0,0,0,1,1,1,1,1, // '2'
-		1,1,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // '3'
-		0,0,0,1,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,0,1,1,1,1,1,0,0,0,1,0,0,0,0,1,0, // '4'
-		1,1,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // '5'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // '6'
-		1,1,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0, // '7'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // '8'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,0,1,1,1,1,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // '9'
-
-		0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0, // ':'
-		0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0, // ';'
-		0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1, // '<'
-		0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0, // '='
-		1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0, // '>'
-		0,1,1,1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0, // '?'
-		0,1,1,1,0,1,0,0,0,1,1,0,1,0,1,1,1,0,1,1,1,0,1,0,0,1,0,0,0,1,0,1,1,1,0, // '@'
-
-		0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,0,0,0,1, // 'A'
-		1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0, // 'B'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,1,1,0, // 'C'
-		1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0, // 'D'
-		1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,1,1,1,1, // 'E'
-		1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0, // 'F'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,1,0,1,1,1,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 'G'
-		1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1, // 'H'
-		0,1,1,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,1,1,0, // 'I'
-		0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 'J'
-		1,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,0,1,0,1,0,0,1,0,0,1,0,1,0,0,0,1, // 'K'
-		1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,1,1,1,1, // 'L'
-		1,0,0,0,1,1,1,0,1,1,1,0,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1, // 'M'
-		1,0,0,0,1,1,0,0,0,1,1,1,0,0,1,1,0,1,0,1,1,0,0,1,1,1,0,0,0,1,1,0,0,0,1, // 'N'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 'O'
-		1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0, // 'P'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,1,1,0,1,1,1,1, // 'Q'
-		1,1,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,1,0,1,0,1,0,0,1,0,0,1,0,1,0,0,0,1, // 'R'
-		0,1,1,1,0,1,0,0,0,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 'S'
-		1,1,1,1,1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0, // 'T'
-		1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0, // 'U'
-		1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0, // 'V'
-		1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,1,0,1,1,1,0,1,1,1,0,0,0,1, // 'W'
-		1,0,0,0,1,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,1,0,0,0,1, // 'X'
-		1,0,0,0,1,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0, // 'Y'
-		1,1,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,1,1,1, // 'Z'
-
-		0,0,0,1,1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,1, // ']'
-		0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0, // '\'
-		1,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,1,1,0,0,0, // ']'
-		0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // '^'
-		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1, // '_'
-		0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  // '''
-	};
-
-	Sprite number_spritesheet = text_spritesheet;
-	number_spritesheet.data += 16 * 35;
 
 	Sprite player_bullet_sprite;
 	player_bullet_sprite.width = 1;
@@ -669,6 +482,13 @@ int main(int argc, char* argv[])
 
 	size_t alien_update_frequency = 120;
 
+	Game game;
+	game.width = buffer_width;
+	game.height = buffer_height;
+	game.num_bullets = 0;
+	game.num_aliens = 55;
+	game.alien = new Alien[game.num_aliens];
+
 	for (size_t i = 0; i < 3; ++i)
 	{
 		alien_animation[i].loop = true;
@@ -677,16 +497,9 @@ int main(int argc, char* argv[])
 		alien_animation[i].time = 0;
 
 		alien_animation[i].frames = new Sprite * [2];
-		alien_animation[i].frames[0] = &alien_sprites[2 * i];
-		alien_animation[i].frames[1] = &alien_sprites[2 * i + 1];
+		alien_animation[i].frames[0] = &game.aliens.sprites[2 * i];
+		alien_animation[i].frames[1] = &game.aliens.sprites[2 * i + 1];
 	}
-
-	Game game;
-	game.width = buffer_width;
-	game.height = buffer_height;
-	game.num_bullets = 0;
-	game.num_aliens = 55;
-	game.aliens = new Alien[game.num_aliens];
 
 	game.player.setPosition(112 - 5, 32);
 	//game.player.position.x = ;
@@ -705,11 +518,11 @@ int main(int argc, char* argv[])
 	{
 		for (size_t yi = 0; yi < 5; ++yi)
 		{
-			Alien& alien = game.aliens[xi * 5 + yi];
+			Alien& alien = game.alien[xi * 5 + yi];
 			alien.type = (5 - int(yi)) / 2 + 1;
-			const Sprite& sprite = alien_sprites[2 * (alien.type - 1)];
+			const Sprite& sprite = game.aliens.sprites[2 * (alien.type - 1)];
 
-			alien.x = 16 * xi + alien_swarm_position + (alien_death_sprite.width - sprite.width) / 2;
+			alien.x = 16 * xi + alien_swarm_position + (game.aliens.deathSprite.width - sprite.width) / 2;
 			alien.y = 17 * yi + 128;
 		}
 	}
@@ -720,10 +533,10 @@ int main(int argc, char* argv[])
 		death_counters[i] = 10;
 	}
 
-	const uint32_t alien_color = rgb_to_uint32(255, 255, 255); // White
-	const uint32_t player_color = rgb_to_uint32(0, 255, 0); // Green
-	const uint32_t red_color = rgb_to_uint32(255, 0, 0); // Red
-	const uint32_t clear_color = rgb_to_uint32(0, 0, 30); // Navy BLue
+	const uint32_t alien_color = Sprite::rgb_to_uint32(255, 255, 255); // White
+	const uint32_t player_color = Sprite::rgb_to_uint32(0, 255, 0); // Green
+	const uint32_t red_color = Sprite::rgb_to_uint32(255, 0, 0); // Red
+	const uint32_t clear_color = Sprite::rgb_to_uint32(0, 0, 30); // Navy BLue
 
 	uint32_t rng = 13;
 
@@ -766,25 +579,25 @@ int main(int argc, char* argv[])
 			buffer_clear(&buffer, clear_color);
 
 			const int text_border_offset = 10;
-			const int score_txt_width = std::string("SCORE").length() * (text_spritesheet.width + 1);
+			const int score_txt_width = std::string("SCORE").length() * (game.sprite_text.text_spritesheet.width + 1);
 			int score_txt_pos = text_border_offset;
-			int score_width = std::to_string(score.getScore()).length() * (number_spritesheet.width + 1);
+			int score_width = std::to_string(score.getScore()).length() * (game.sprite_text.number_spritesheet.width + 1);
 			int score_pos = score_txt_pos + (score_txt_width / 2 - score_width / 2);
-			buffer_draw_text(&buffer, text_spritesheet, "SCORE", score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
-			buffer_draw_number(&buffer, number_spritesheet, score.getScore(), score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
+			buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "SCORE", score_txt_pos, game.height - game.sprite_text.text_spritesheet.height - 7, red_color);
+			buffer_draw_number(&buffer, game.sprite_text.number_spritesheet, score.getScore(), score_pos, game.height - 2 * game.sprite_text.number_spritesheet.height - 12, red_color);
 
 			//Draw High_Score - there is a 1px space between each character
-			const int high_score_txt_width = std::string("HIGH SCORE").length() * (text_spritesheet.width + 1);
+			const int high_score_txt_width = std::string("HIGH SCORE").length() * (game.sprite_text.text_spritesheet.width + 1);
 			int high_score_txt_pos = game.width - text_border_offset - high_score_txt_width;
-			int high_score_width = std::to_string(score.getHighScore()).length() * (number_spritesheet.width + 1);
+			int high_score_width = std::to_string(score.getHighScore()).length() * (game.sprite_text.number_spritesheet.width + 1);
 			int high_score_pos = (game.width - high_score_width) - (high_score_txt_width / 2 - high_score_width / 2) - text_border_offset;
-			buffer_draw_text(&buffer, text_spritesheet, "HIGH SCORE", high_score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
-			buffer_draw_number(&buffer, number_spritesheet, score.getHighScore(), high_score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
+			buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "HIGH SCORE", high_score_txt_pos, game.height - game.sprite_text.text_spritesheet.height - 7, red_color);
+			buffer_draw_number(&buffer, game.sprite_text.number_spritesheet, score.getHighScore(), high_score_pos, game.height - 2 * game.sprite_text.number_spritesheet.height - 12, red_color);
 
 			std::string level_text = "LEVEL " + std::to_string(level);
-			int level_text_width = level_text.length() * (number_spritesheet.width + 1);
+			int level_text_width = level_text.length() * (game.sprite_text.number_spritesheet.width + 1);
 			int level_text_pos = (game.width - level_text_width) - text_border_offset;
-			buffer_draw_text(&buffer, text_spritesheet, level_text.c_str() , level_text_pos, text_spritesheet.height, red_color);
+			buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, level_text.c_str() , level_text_pos, game.sprite_text.text_spritesheet.height, red_color);
 
 
 			if (game_over)
@@ -794,7 +607,7 @@ int main(int argc, char* argv[])
 			{
 				game_over = false;
 
-				buffer_draw_text(&buffer, text_spritesheet, "GAME OVER", game.width / 2 - 30, game.height / 2, red_color);
+				buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "GAME OVER", game.width / 2 - 30, game.height / 2, red_color);
 				glTexSubImage2D(
 					GL_TEXTURE_2D, 0, 0, 0,
 					buffer.width, buffer.height,
@@ -811,8 +624,8 @@ int main(int argc, char* argv[])
 				continue;
 			}
 
-			buffer_draw_number(&buffer, number_spritesheet, game.player.getLife(), 4, 7, red_color);
-			size_t xp = 11 + number_spritesheet.width;
+			buffer_draw_number(&buffer, game.sprite_text.number_spritesheet, game.player.getLife(), 4, 7, red_color);
+			size_t xp = 11 + game.sprite_text.number_spritesheet.width;
 			for (size_t i = 0; i < game.player.getLife() - 1; ++i)
 			{
 				//Lives Sprite
@@ -831,10 +644,10 @@ int main(int argc, char* argv[])
 			{
 				if (death_counters[ai] == 0) continue;
 
-				const Alien& alien = game.aliens[ai];
+				const Alien& alien = game.alien[ai];
 				if (alien.type == ALIEN_DEAD)
 				{
-					buffer_draw_sprite(&buffer, alien_death_sprite, alien.x, alien.y);
+					buffer_draw_sprite(&buffer, game.aliens.deathSprite, alien.x, alien.y);
 				}
 				else
 				{
@@ -932,7 +745,7 @@ int main(int argc, char* argv[])
 					// Check hit
 					for (size_t ai = 0; ai < game.num_aliens; ++ai)
 					{
-						const Alien& alien = game.aliens[ai];
+						const Alien& alien = game.alien[ai];
 						if (alien.type == ALIEN_DEAD) continue;
 
 						const SpriteAnimation& animation = alien_animation[alien.type - 1];
@@ -946,13 +759,19 @@ int main(int argc, char* argv[])
 						if (overlap)
 						{
 							//if top row
-							if (game.aliens[ai].type == 1)
+							if (game.alien[ai].type == 1)
 								score.setScore(40);
 							else
-								score.setScore(10 * (4 - game.aliens[ai].type));
-							game.aliens[ai].type = ALIEN_DEAD;
+								score.setScore(10 * (4 - game.alien[ai].type));
+							if (score.addLife)
+							{
+								game.player.setLife(game.player.getLife() + 1);
+								score.addLife = false;
+								sound.ExtraLifePlay();
+							}
+							game.alien[ai].type = ALIEN_DEAD;
 							// NOTE: Hack to recenter death sprite
-							game.aliens[ai].x -= (alien_death_sprite.width - alien_sprite.width) / 2;
+							game.alien[ai].x -= (game.aliens.deathSprite.width - alien_sprite.width) / 2;
 							game.bullets[bi] = game.bullets[game.num_bullets - 1];
 							--game.num_bullets;
 							++aliens_killed;
@@ -980,7 +799,7 @@ int main(int argc, char* argv[])
 			// Update death counters
 			for (size_t ai = 0; ai < game.num_aliens; ++ai)
 			{
-				const Alien& alien = game.aliens[ai];
+				const Alien& alien = game.alien[ai];
 				if (alien.type == ALIEN_DEAD && death_counters[ai])
 				{
 					--death_counters[ai];
@@ -999,7 +818,7 @@ int main(int argc, char* argv[])
 					//for overlap. What happens when alien moves over line y = 0 line?
 					for (size_t ai = 0; ai < game.num_aliens; ++ai)
 					{
-						Alien& alien = game.aliens[ai];
+						Alien& alien = game.alien[ai];
 						alien.y -= 8;
 					}
 				}
@@ -1007,21 +826,21 @@ int main(int argc, char* argv[])
 
 				for (size_t ai = 0; ai < game.num_aliens; ++ai)
 				{
-					Alien& alien = game.aliens[ai];
+					Alien& alien = game.alien[ai];
 					alien.x += alien_move_dir;
 				}
 
 				if (aliens_killed < game.num_aliens)
 				{
 					size_t rai = game.num_aliens * random(&rng);
-					while (game.aliens[rai].type == ALIEN_DEAD)
+					while (game.alien[rai].type == ALIEN_DEAD)
 					{
 						rai = game.num_aliens * random(&rng);
 					}
 					if (game.num_bullets < GAME_MAX_BULLETS) {
-						const Sprite& alien_sprite = *alien_animation[game.aliens[rai].type - 1].frames[0];
-						game.bullets[game.num_bullets].x = game.aliens[rai].x + alien_sprite.width / 2;
-						game.bullets[game.num_bullets].y = game.aliens[rai].y - alien_bullet_sprite[0].height;
+						const Sprite& alien_sprite = *alien_animation[game.alien[rai].type - 1].frames[0];
+						game.bullets[game.num_bullets].x = game.alien[rai].x + alien_sprite.width / 2;
+						game.bullets[game.num_bullets].y = game.alien[rai].y - alien_bullet_sprite[0].height;
 						game.bullets[game.num_bullets].dir = -2;
 						++game.num_bullets;
 					}
@@ -1064,14 +883,14 @@ int main(int argc, char* argv[])
 			if (aliens_killed < game.num_aliens && !reset)
 			{
 				size_t ai = 0;
-				while (game.aliens[ai].type == ALIEN_DEAD) ++ai;
-				const Sprite& sprite = alien_sprites[2 * (game.aliens[ai].type - 1)];
-				size_t pos = game.aliens[ai].x - (alien_death_sprite.width - sprite.width) / 2;
+				while (game.alien[ai].type == ALIEN_DEAD) ++ai;
+				const Sprite& sprite = game.aliens.sprites[2 * (game.alien[ai].type - 1)];
+				size_t pos = game.alien[ai].x - (game.aliens.deathSprite.width - sprite.width) / 2;
 				if (pos > alien_swarm_position) alien_swarm_position = pos;
 
 				ai = game.num_aliens - 1;
-				while (game.aliens[ai].type == ALIEN_DEAD) --ai;
-				pos = game.width - game.aliens[ai].x - 13 + pos;
+				while (game.alien[ai].type == ALIEN_DEAD) --ai;
+				pos = game.width - game.alien[ai].x - 13 + pos;
 				if (pos > alien_swarm_max_position) alien_swarm_max_position = pos;
 				ASSERT(alien_swarm_max_position <= buffer_width);
 			}
@@ -1114,12 +933,12 @@ int main(int argc, char* argv[])
 
 						death_counters[ai] = 10;
 
-						Alien& alien = game.aliens[ai];
+						Alien& alien = game.alien[ai];
 						alien.type = (5 - yi) / 2 + 1;
 
-						const Sprite& sprite = alien_sprites[2 * (alien.type - 1)];
+						const Sprite& sprite = game.aliens.sprites[2 * (alien.type - 1)];
 
-						alien.x = 16 * xi + alien_swarm_position + (alien_death_sprite.width - sprite.width) / 2;
+						alien.x = 16 * xi + alien_swarm_position + (game.aliens.deathSprite.width - sprite.width) / 2;
 
 						//drop 8px per level
 						alien.y = 17 * yi + 128 - (8 * (level - 1));
@@ -1140,8 +959,8 @@ int main(int argc, char* argv[])
 			fire_pressed = false;
 			glfwPollEvents();
 		}
-		// - Render at maximum possible frames
 
+		// - Render at maximum possible frames
 		glTexSubImage2D(
 			GL_TEXTURE_2D, 0, 0, 0,
 			buffer.width, buffer.height,
@@ -1156,8 +975,8 @@ int main(int argc, char* argv[])
 		// - Reset after one second
 		if (glfwGetTime() - timer > 1.0) {
 			timer++;
-			updateWindowTitle(window, frames, alien_update_frequency);
-			std::cout << "FPS: " << frames << " Updates:" << updates << std::endl;
+			updateWindowTitle(window, frames, updates,  alien_update_frequency);
+			//std::cout << "FPS: " << frames << " Updates:" << updates << std::endl;
 			updates = 0, frames = 0;
 		}
 	}
@@ -1166,13 +985,6 @@ int main(int argc, char* argv[])
 
 	glDeleteVertexArrays(1, &fullscreen_triangle_vao);
 
-	for (size_t i = 0; i < 6; ++i)
-	{
-		delete[] alien_sprites[i].data;
-	}
-
-	delete[] text_spritesheet.data;
-	delete[] alien_death_sprite.data;
 	delete[] player_bullet_sprite.data;
 	delete[] alien_bullet_sprite[0].data;
 	delete[] alien_bullet_sprite[1].data;
@@ -1183,7 +995,7 @@ int main(int argc, char* argv[])
 		delete[] alien_animation[i].frames;
 	}
 	delete[] buffer.data;
-	delete[] game.aliens;
+	delete[] game.alien;
 	delete[] death_counters;
 	return 0;
 }
