@@ -17,7 +17,7 @@ public:
 		Move3,				// fastinvader3.wav
 		Move4,				// fastinvader4.wav
 		UFO_Death,			// ufo_lowpitch.wav
-		ExtraLife			// extendedplay.wav
+		ExtraLife = 9		// extendedplay.wav
 	};
 
 
@@ -27,11 +27,7 @@ private:
 	int Play(SoundFile Sound, bool loop = false);
 
 public:
-	Sound()
-		:MoveSoundPos(0)
-	{
-
-	}
+	Sound();
 	void AlienMovePlay();
 	void UFO_FlyingPlay();
 	void Player_ShootPlay();

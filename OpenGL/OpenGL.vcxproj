@@ -162,6 +162,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Sprite.cpp" />
+    <ClCompile Include="src\Bullet.cpp" />
+    <ClCompile Include="src\Player.cpp" />
+    <ClCompile Include="src\Score.cpp" />
     <ClCompile Include="src\Sound.cpp" />
     <ClCompile Include="src\Space_Invaders.cpp" />
     <ClCompile Include="src\vendor\stb_image\stb_image.cpp" />
@@ -173,6 +177,11 @@
     <None Include="res\shaders\Basic.shader" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\HelperFunctions.h" />
+    <ClInclude Include="src\Sprite.h" />
+    <ClInclude Include="src\Bullet.h" />
+    <ClInclude Include="src\Player.h" />
+    <ClInclude Include="src\Score.h" />
     <ClInclude Include="src\Sound.h" />
     <ClInclude Include="src\vendor\stb_image\stb_image.h" />
   </ItemGroup>

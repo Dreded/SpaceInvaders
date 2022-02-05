@@ -2,6 +2,11 @@
 
 irrklang::ISoundEngine* SoundEngine = irrklang::createIrrKlangDevice();
 
+Sound::Sound()
+	:MoveSoundPos(0)
+{
+
+}
 int Sound::Play(SoundFile Sound, bool loop)
 {
 	std::string file = "audio/" + std::to_string(Sound) + ".wav";

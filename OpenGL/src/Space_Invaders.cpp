@@ -1,14 +1,15 @@
 #include <cstdio>
 #include <cstdint>
 #include <limits>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <string>
+#include <sstream>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 #include "Sound.h"
+#include "Score.h"
+#include "Player.h"
+#include "Sprite.h"
 
 #define ASSERT(x) if (!(x)) __debugbreak();
 #define GAME_NAME "Space Invaders"
@@ -25,7 +26,12 @@ bool window_resize = true;
 bool render = true;
 
 Sound sound;
+Score score;
 
+uint32_t rgb_to_uint32(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
+{
+	return (r << 24) | (g << 16) | (b << 8) | a;
+}
 #define GL_ERROR_CASE(glerror)\
     case glerror: snprintf(error, sizeof(error), "%s", #glerror)
 
@@ -121,27 +127,6 @@ void window_size_callback(GLFWwindow* window, int width, int height)
 	window_resize = true;
 }
 
-struct High_Score
-{
-	uint32_t hs;
-};
-void read_high_score(High_Score& high_score)
-{
-	std::ifstream in("score.dat");
-	if (in.good())
-		in.read((char*)&high_score, sizeof(high_score));
-	else
-		high_score.hs = 0;
-	in.close();
-}
-void write_high_score(High_Score& high_score)
-{
-	std::ofstream out("score.dat");
-	if (out.good())
-		out.write((char*)&high_score, sizeof(high_score));
-	out.close();
-}
-
 /* Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs" */
 uint32_t xorshift32(uint32_t* rng)
 {
@@ -164,33 +149,18 @@ struct Buffer
 	uint32_t* data;
 };
 
-struct Sprite
-{
-	size_t width, height;
-	uint32_t color;
-	uint8_t* data;
-};
-
 struct Alien
 {
 	size_t x, y;
 	size_t type;
 };
 
+#define GAME_MAX_BULLETS 128
 struct Bullet
 {
 	size_t x, y;
 	int dir;
 };
-
-struct Player
-{
-	size_t x, y;
-	size_t life;
-};
-
-#define GAME_MAX_BULLETS 128
-
 struct Game
 {
 	size_t width, height;
@@ -311,10 +281,7 @@ void buffer_draw_text(
 	}
 }
 
-uint32_t rgb_to_uint32(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
-{
-	return (r << 24) | (g << 16) | (b << 8) | a;
-}
+
 
 int main(int argc, char* argv[])
 {
@@ -584,20 +551,6 @@ int main(int argc, char* argv[])
 		0,1,0,0,1,0,0,0,1,0,0,1,0  // .@..@...@..@.
 	};
 
-	Sprite player_sprite;
-	player_sprite.width = 11;
-	player_sprite.height = 7;
-	player_sprite.data = new uint8_t[77]
-	{
-		0,0,0,0,0,1,0,0,0,0,0, // .....@.....
-		0,0,0,0,1,1,1,0,0,0,0, // ....@@@....
-		0,0,0,0,1,1,1,0,0,0,0, // ....@@@....
-		0,1,1,1,1,1,1,1,1,1,0, // .@@@@@@@@@.
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-		1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
-	};
-
 
 	Sprite text_spritesheet;
 	text_spritesheet.width = 5;
@@ -735,10 +688,11 @@ int main(int argc, char* argv[])
 	game.num_aliens = 55;
 	game.aliens = new Alien[game.num_aliens];
 
-	game.player.x = 112 - 5;
-	game.player.y = 32;
+	game.player.setPosition(112 - 5, 32);
+	//game.player.position.x = ;
+	//game.player.postion.y = 32;
 
-	game.player.life = 3;
+	//game.player.life = 3;
 
 	size_t alien_swarm_position = 24;
 	size_t alien_swarm_max_position = game.width - 16 * 11 - 3;
@@ -775,9 +729,7 @@ int main(int argc, char* argv[])
 
 	int alien_move_dir = 4;
 
-	High_Score high_score;
-	read_high_score(high_score);
-	size_t score = 0;
+
 	size_t level = 1;
 
 	game_running = true;
@@ -816,18 +768,18 @@ int main(int argc, char* argv[])
 			const int text_border_offset = 10;
 			const int score_txt_width = std::string("SCORE").length() * (text_spritesheet.width + 1);
 			int score_txt_pos = text_border_offset;
-			int score_width = std::to_string(score).length() * (number_spritesheet.width + 1);
+			int score_width = std::to_string(score.getScore()).length() * (number_spritesheet.width + 1);
 			int score_pos = score_txt_pos + (score_txt_width / 2 - score_width / 2);
 			buffer_draw_text(&buffer, text_spritesheet, "SCORE", score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
-			buffer_draw_number(&buffer, number_spritesheet, score, score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
+			buffer_draw_number(&buffer, number_spritesheet, score.getScore(), score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
 
 			//Draw High_Score - there is a 1px space between each character
 			const int high_score_txt_width = std::string("HIGH SCORE").length() * (text_spritesheet.width + 1);
 			int high_score_txt_pos = game.width - text_border_offset - high_score_txt_width;
-			int high_score_width = std::to_string(high_score.hs).length() * (number_spritesheet.width + 1);
+			int high_score_width = std::to_string(score.getHighScore()).length() * (number_spritesheet.width + 1);
 			int high_score_pos = (game.width - high_score_width) - (high_score_txt_width / 2 - high_score_width / 2) - text_border_offset;
 			buffer_draw_text(&buffer, text_spritesheet, "HIGH SCORE", high_score_txt_pos, game.height - text_spritesheet.height - 7, red_color);
-			buffer_draw_number(&buffer, number_spritesheet, high_score.hs, high_score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
+			buffer_draw_number(&buffer, number_spritesheet, score.getHighScore(), high_score_pos, game.height - 2 * number_spritesheet.height - 12, red_color);
 
 			std::string level_text = "LEVEL " + std::to_string(level);
 			int level_text_width = level_text.length() * (number_spritesheet.width + 1);
@@ -836,9 +788,9 @@ int main(int argc, char* argv[])
 
 
 			if (game_over)
-				game.player.life = 0;
+				game.player.setLife(0);
 
-			if (game.player.life == 0)
+			if (game.player.getLife() == 0)
 			{
 				game_over = false;
 
@@ -855,17 +807,17 @@ int main(int argc, char* argv[])
 				glfwPollEvents();
 				if (reset)
 					//Exit this IF Statement... will be change properly further down.
-					game.player.life = 1;
+					game.player.setLife(1);
 				continue;
 			}
 
-			buffer_draw_number(&buffer, number_spritesheet, game.player.life, 4, 7, red_color);
+			buffer_draw_number(&buffer, number_spritesheet, game.player.getLife(), 4, 7, red_color);
 			size_t xp = 11 + number_spritesheet.width;
-			for (size_t i = 0; i < game.player.life - 1; ++i)
+			for (size_t i = 0; i < game.player.getLife() - 1; ++i)
 			{
 				//Lives Sprite
-				buffer_draw_sprite(&buffer, player_sprite, xp, 7, player_color);
-				xp += player_sprite.width + 2;
+				buffer_draw_sprite(&buffer, game.player.sprite, xp, 7, player_color);
+				xp += game.player.sprite.width + 2;
 			}
 
 			//Line on Bottom
@@ -911,7 +863,7 @@ int main(int argc, char* argv[])
 				else
 					buffer_draw_sprite(&buffer, *sprite, bullet.x, bullet.y, alien_color);
 			}
-			buffer_draw_sprite(&buffer, player_sprite, game.player.x, game.player.y, player_color);
+			buffer_draw_sprite(&buffer, game.player.sprite, game.player.x, game.player.y, player_color);
 
 			// Simulate bullets
 			for (size_t bi = 0; bi < game.num_bullets; ++bi)
@@ -929,13 +881,13 @@ int main(int argc, char* argv[])
 				{
 					bool overlap = sprite_overlap_check(
 						alien_bullet_sprite[0], game.bullets[bi].x, game.bullets[bi].y,
-						player_sprite, game.player.x, game.player.y
+						game.player.sprite, game.player.x, game.player.y
 					);
 
 					if (overlap)
 					{
 						sound.Player_DeathPlay();
-						--game.player.life;
+						game.player.setLife(game.player.getLife() - 1);
 						game.bullets[bi] = game.bullets[game.num_bullets - 1];
 						--game.num_bullets;
 						//NOTE: The rest of the frame is still going to be simulated.
@@ -995,9 +947,9 @@ int main(int argc, char* argv[])
 						{
 							//if top row
 							if (game.aliens[ai].type == 1)
-								score += 40;
+								score.setScore(40);
 							else
-								score += 10 * (4 - game.aliens[ai].type);
+								score.setScore(10 * (4 - game.aliens[ai].type));
 							game.aliens[ai].type = ALIEN_DEAD;
 							// NOTE: Hack to recenter death sprite
 							game.aliens[ai].x -= (alien_death_sprite.width - alien_sprite.width) / 2;
@@ -1098,9 +1050,9 @@ int main(int argc, char* argv[])
 
 			if (player_move_dir != 0)
 			{
-				if (game.player.x + player_sprite.width + player_move_dir >= game.width)
+				if (game.player.x + game.player.sprite.width + player_move_dir >= game.width)
 				{
-					game.player.x = game.width - player_sprite.width;
+					game.player.x = game.width - game.player.sprite.width;
 				}
 				else if ((int)game.player.x + player_move_dir <= 0)
 				{
@@ -1111,8 +1063,6 @@ int main(int argc, char* argv[])
 
 			if (aliens_killed < game.num_aliens && !reset)
 			{
-				if (score > high_score.hs)
-					high_score.hs = score;
 				size_t ai = 0;
 				while (game.aliens[ai].type == ALIEN_DEAD) ++ai;
 				const Sprite& sprite = alien_sprites[2 * (game.aliens[ai].type - 1)];
@@ -1130,8 +1080,8 @@ int main(int argc, char* argv[])
 				if (reset)
 				{
 					reset = false;
-					game.player.life = 3;
-					score = 0;
+					game.player.setLife(3);
+					score.setScore(0);
 					fire_pressed = false;
 					level = 0;
 				}
@@ -1181,8 +1131,8 @@ int main(int argc, char* argv[])
 			// Process events
 			if (fire_pressed && game.num_bullets < GAME_MAX_BULLETS)
 			{
-				game.bullets[game.num_bullets].x = game.player.x + player_sprite.width / 2;
-				game.bullets[game.num_bullets].y = game.player.y + player_sprite.height;
+				game.bullets[game.num_bullets].x = game.player.x + game.player.sprite.width / 2;
+				game.bullets[game.num_bullets].y = game.player.y + game.player.sprite.height;
 				game.bullets[game.num_bullets].dir = 2;
 				++game.num_bullets;
 				sound.Player_ShootPlay();
@@ -1211,7 +1161,6 @@ int main(int argc, char* argv[])
 			updates = 0, frames = 0;
 		}
 	}
-	write_high_score(high_score);
 	glfwDestroyWindow(window);
 	glfwTerminate();
 
