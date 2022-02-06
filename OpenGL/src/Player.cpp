@@ -1,7 +1,7 @@
 #include "Player.h"
 
 Player::Player()
-	: life(3)
+	: life(3), speed(2), move_dir(0)
 {
 	setPosition(0, 0);
 	sprite.width = 11;
@@ -41,4 +41,22 @@ void Player::setPosition(size_t x, size_t y)
 {
 	Player::x = x;
 	Player::y = y;
+}
+
+void Player::Move(size_t& game_width)
+{
+	int move_ammount = Player::speed * Player::move_dir;
+
+	if (move_ammount != 0)
+	{
+		if (Player::x + Player::sprite.width + move_ammount >= game_width)
+		{
+			Player::x = game_width - Player::sprite.width;
+		}
+		else if ((int)Player::x + move_ammount <= 0)
+		{
+			Player::x = 0;
+		}
+		else Player::x += move_ammount;
+	}
 }

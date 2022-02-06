@@ -18,8 +18,8 @@
 #define VERSION "v0.1"
 
 const bool enable_vsync = true;
+
 bool game_running = false;
-int move_dir = 0;
 bool fire_pressed = 0;
 bool reset = 0;
 bool game_over = false;
@@ -92,33 +92,6 @@ void error_callback(int error, const char* description)
 {
 	fprintf(stderr, "Error: %s\n", description);
 }
-
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	switch (key) {
-	case GLFW_KEY_ESCAPE:
-		if (action == GLFW_PRESS) game_running = false;
-		break;
-	case GLFW_KEY_RIGHT:
-		if (action == GLFW_PRESS) move_dir += 1;
-		else if (action == GLFW_RELEASE) move_dir -= 1;
-		break;
-	case GLFW_KEY_LEFT:
-		if (action == GLFW_PRESS) move_dir -= 1;
-		else if (action == GLFW_RELEASE) move_dir += 1;
-		break;
-	case GLFW_KEY_SPACE:
-		if (action == GLFW_RELEASE) fire_pressed = true;
-		break;
-	case GLFW_KEY_R:
-		if (action == GLFW_RELEASE) reset = true;
-		break;
-	case GLFW_KEY_G:
-		if (action == GLFW_RELEASE) game_over = true;
-		break;
-	default:
-		break;
-	}
-}
 void window_size_callback(GLFWwindow* window, int width, int height)
 {
 	screen_width = width;
@@ -137,6 +110,7 @@ uint32_t xorshift32(uint32_t* rng)
 	return x;
 }
 
+// TODO: This is not random always the exact same firing order.
 double random(uint32_t* rng)
 {
 	return (double)xorshift32(rng) / std::numeric_limits<uint32_t>::max();
@@ -187,7 +161,34 @@ enum AlienType : uint8_t
 	ALIEN_TYPE_B = 2,
 	ALIEN_TYPE_C = 3
 };
+Game game;
 
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	switch (key) {
+	case GLFW_KEY_ESCAPE:
+		if (action == GLFW_PRESS) game_running = false;
+		break;
+	case GLFW_KEY_RIGHT:
+		if (action == GLFW_PRESS) game.player.move_dir += 1;
+		else if (action == GLFW_RELEASE) game.player.move_dir -= 1;
+		break;
+	case GLFW_KEY_LEFT:
+		if (action == GLFW_PRESS) game.player.move_dir -= 1;
+		else if (action == GLFW_RELEASE) game.player.move_dir += 1;
+		break;
+	case GLFW_KEY_SPACE:
+		if (action == GLFW_RELEASE) fire_pressed = true;
+		break;
+	case GLFW_KEY_R:
+		if (action == GLFW_RELEASE) reset = true;
+		break;
+	case GLFW_KEY_G:
+		if (action == GLFW_RELEASE) game_over = true;
+		break;
+	default:
+		break;
+	}
+}
 void buffer_clear(Buffer* buffer, uint32_t color)
 {
 	for (size_t i = 0; i < buffer->width * buffer->height; ++i)
@@ -482,7 +483,6 @@ int main(int argc, char* argv[])
 
 	size_t alien_update_frequency = 120;
 
-	Game game;
 	game.width = buffer_width;
 	game.height = buffer_height;
 	game.num_bullets = 0;
@@ -546,8 +546,6 @@ int main(int argc, char* argv[])
 	size_t level = 1;
 
 	game_running = true;
-
-	int player_move_dir = 0;
 	static double limitFPS = 1.0 / 60.0;
 
 	double lastTime = glfwGetTime(), timer = lastTime;
@@ -806,6 +804,7 @@ int main(int argc, char* argv[])
 				}
 			}
 
+			static int alien_fired_bullet = 0;
 			if (alien_update_timer >= alien_update_frequency)
 			{
 				sound.AlienMovePlay();
@@ -837,7 +836,15 @@ int main(int argc, char* argv[])
 					{
 						rai = game.num_aliens * random(&rng);
 					}
+
+					//get last one in column then start checking for first not dead
+					int last = rai - (rai % 5);
+					std::cout << last << std::endl;
+					while (game.alien[last].type == ALIEN_DEAD)
+						last++;
+					rai = last;
 					if (game.num_bullets < GAME_MAX_BULLETS) {
+						alien_fired_bullet = rai;
 						const Sprite& alien_sprite = *alien_animation[game.alien[rai].type - 1].frames[0];
 						game.bullets[game.num_bullets].x = game.alien[rai].x + alien_sprite.width / 2;
 						game.bullets[game.num_bullets].y = game.alien[rai].y - alien_bullet_sprite[0].height;
@@ -846,6 +853,29 @@ int main(int argc, char* argv[])
 					}
 				}
 			}
+			//int below = 0;
+			//if (alien_fired_bullet % 5 == 0)
+			//{
+			//	buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "F", game.alien[alien_fired_bullet].x + 4, game.alien[alien_fired_bullet].y, red_color);
+			//}
+			//for (int i = alien_fired_bullet; (i%5) ; i--)
+			//{
+			//	if (!((i - 1) % 5))
+			//	{
+			//		buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "L", game.alien[i - 1].x + 4, game.alien[i - 1].y, red_color);
+			//		below += 1;
+			//	}
+			//	if (i == alien_fired_bullet)
+			//	{
+			//		buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "F", game.alien[i].x + 4, game.alien[i].y, red_color);
+			//	}
+			//	else
+			//	{
+			//		buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "C", game.alien[i].x + 4, game.alien[i].y, red_color);
+			//		below += 1;
+			//	}
+			//}
+			//std::cout << "Fired: " << alien_fired_bullet << "  Below: " << below << "  Remainder: " << alien_fired_bullet % 5 << std::endl;
 
 			// Update animations
 			for (size_t i = 0; i < 3; ++i)
@@ -865,20 +895,7 @@ int main(int argc, char* argv[])
 			++alien_update_timer;
 
 			// Simulate player
-			player_move_dir = 2 * move_dir;
-
-			if (player_move_dir != 0)
-			{
-				if (game.player.x + game.player.sprite.width + player_move_dir >= game.width)
-				{
-					game.player.x = game.width - game.player.sprite.width;
-				}
-				else if ((int)game.player.x + player_move_dir <= 0)
-				{
-					game.player.x = 0;
-				}
-				else game.player.x += player_move_dir;
-			}
+			game.player.Move(game.width);
 
 			if (aliens_killed < game.num_aliens && !reset)
 			{
