@@ -341,8 +341,6 @@ int main(int argc, char* argv[])
 	//change to 1 to enable vsync
 	glfwSwapInterval(enable_vsync);
 
-	glClearColor(1.0, 0.0, 0.0, 1.0);
-
 	// Create graphics buffer
 	Buffer buffer;
 	buffer.width = buffer_width;
@@ -502,10 +500,6 @@ int main(int argc, char* argv[])
 	}
 
 	game.player.setPosition(112 - 5, 32);
-	//game.player.position.x = ;
-	//game.player.postion.y = 32;
-
-	//game.player.life = 3;
 
 	size_t alien_swarm_position = 24;
 	size_t alien_swarm_max_position = game.width - 16 * 11 - 3;
@@ -536,6 +530,7 @@ int main(int argc, char* argv[])
 	const uint32_t alien_color = Sprite::rgb_to_uint32(255, 255, 255); // White
 	const uint32_t player_color = Sprite::rgb_to_uint32(0, 255, 0); // Green
 	const uint32_t red_color = Sprite::rgb_to_uint32(255, 0, 0); // Red
+	const uint32_t black_color = Sprite::rgb_to_uint32(0, 0, 0); // Black
 	const uint32_t clear_color = Sprite::rgb_to_uint32(0, 0, 30); // Navy BLue
 
 	uint32_t rng = 13;
@@ -571,6 +566,11 @@ int main(int argc, char* argv[])
 				GLsizei my_ratio = screen_height / buffer_height;
 				GLsizei my_width = buffer_width * my_ratio;
 				GLsizei black_bar = (screen_width - my_width) / 2;
+				glViewport(0, 0, screen_width, screen_height);
+				buffer_clear(&buffer, black_color);
+				glfwSwapBuffers(window);
+				glClearColor(0, 0, 0, 1);
+				glClear(GL_COLOR_BUFFER_BIT);
 				glViewport(black_bar, 0, my_width, screen_height);
 				window_resize = false;
 			}
@@ -853,29 +853,19 @@ int main(int argc, char* argv[])
 					}
 				}
 			}
-			//int below = 0;
+			//int below = alien_fired_bullet % 5;
 			//if (alien_fired_bullet % 5 == 0)
-			//{
 			//	buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "F", game.alien[alien_fired_bullet].x + 4, game.alien[alien_fired_bullet].y, red_color);
-			//}
 			//for (int i = alien_fired_bullet; (i%5) ; i--)
 			//{
 			//	if (!((i - 1) % 5))
-			//	{
 			//		buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "L", game.alien[i - 1].x + 4, game.alien[i - 1].y, red_color);
-			//		below += 1;
-			//	}
 			//	if (i == alien_fired_bullet)
-			//	{
 			//		buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "F", game.alien[i].x + 4, game.alien[i].y, red_color);
-			//	}
 			//	else
-			//	{
 			//		buffer_draw_text(&buffer, game.sprite_text.text_spritesheet, "C", game.alien[i].x + 4, game.alien[i].y, red_color);
-			//		below += 1;
-			//	}
 			//}
-			//std::cout << "Fired: " << alien_fired_bullet << "  Below: " << below << "  Remainder: " << alien_fired_bullet % 5 << std::endl;
+			//std::cout << "Fired: " << alien_fired_bullet << "  Below: " << below << std::endl;
 
 			// Update animations
 			for (size_t i = 0; i < 3; ++i)

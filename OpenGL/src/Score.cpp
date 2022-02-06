@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "Score.h"
 
 Score::Score()
@@ -15,7 +16,12 @@ void Score::setScore(uint32_t score)
 	Score::score += score;
 	if (Score::score > Score::high_score)
 		Score::high_score = Score::score;
-	if (!(Score::score % Score::extra_life_points))
+	// remaineder needs to be less then what we are addding
+	// (490 + 30) % 500 = 20
+	// (250 + 300) % 500 = 50
+	// (490 + 300) % 500 = 290
+	// (550 + 300) % 500 = 350 < -- no extra life as we didnt pass a multiple of 500
+	if ((Score::score % Score::extra_life_points) < score)
 		extraLife();
 }
 uint32_t Score::getScore()
