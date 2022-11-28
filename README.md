@@ -2,6 +2,17 @@
 Initially Based off Tutorial here
 http://nicktasios.nl/posts/space-invaders-from-scratch-part-1.html
 
+# My Changes
+- Added Sound
+- Logic Runs at 60ticks, framerate is uncapped.
+- Allow for window resize
+- Default window size is now Monitor Res - 25%
+- Added Black bars when window size mismatch.
+- Colorized it
+- Added High Score
+- Fixed a bunch of bugs related to reset/cleared play area
+- Added reset key 'r'
+
 ![space_Invaders](https://user-images.githubusercontent.com/3213678/152096523-bfbe6ca2-2829-47a9-b542-ae3918503e69.png)
 
 ###### Please see OpenGL/Licenses/ for individual library licenses
